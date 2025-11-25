@@ -5,10 +5,16 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/config"
+	"github.com/ErisSusanto19/chat-app-v2-backend/internal/handler"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/repository"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -26,24 +32,28 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		log.Fatalf("could not ping database: %v", err)
 	}
 
 	fmt.Println("Successfully connected to the database!")
+	fmt.Printf("Starting server on port %s\n", cfg.ServerPort)
 
 	userRepo := repository.NewPostgresUserRepository(db)
-
 	authService := service.NewAuthService(userRepo)
+	authHandler := handler.NewAuthHandler(authService)
 
-	log.Println("Attempting to register a new user via auth service...")
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
 
-	newUser, err := authService.Register(ctx, "Service User", "service.user@example.com", "strongpassword123")
-	if err != nil {
-		log.Printf("Failed to register user: %v", err)
-	} else {
-		log.Printf("Successfully registered user with ID: %s and Name: %s", newUser.ID, newUser.Name)
+	router.Route("/api/v1", func(r chi.Router) {
+		authHandler.RegisterRoutes(r.(*chi.Mux))
+	})
+
+	log.Printf("Starting server on port %s", cfg.ServerPort)
+	if err := http.ListenAndServe(cfg.ServerPort, router); err != nil {
+		log.Fatalf("could not start server: %v", err)
 	}
 
-	fmt.Printf("Starting server on port %s\n", cfg.ServerPort)
 }
