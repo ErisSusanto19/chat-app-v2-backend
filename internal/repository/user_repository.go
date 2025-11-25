@@ -12,7 +12,7 @@ import (
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *domain.User) error
-	// GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 }
 
 type postgresUserRepository struct {
@@ -21,6 +21,36 @@ type postgresUserRepository struct {
 
 func NewPostgresUserRepository(db *sql.DB) UserRepository {
 	return &postgresUserRepository{db: db}
+}
+
+func (r *postgresUserRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	query := `
+		SELECT id, name, email, hashed_password, phone_number, image, created_at, updated_at
+		FROM users WHERE email = $1
+	`
+
+	user := &domain.User{}
+
+	err := r.db.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.HashedPassword,
+		&user.PhoneNumber,
+		&user.Image,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (r *postgresUserRepository) CreateUser(ctx context.Context, user *domain.User) error {

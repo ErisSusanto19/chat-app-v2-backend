@@ -7,8 +7,8 @@ import (
 	"log"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/config"
-	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/repository"
+	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
 )
 
 func main() {
@@ -34,18 +34,15 @@ func main() {
 
 	userRepo := repository.NewPostgresUserRepository(db)
 
-	log.Println("Attempting to create a test user...")
-	testUser := &domain.User{
-		Name:           "Test User",
-		Email:          "test@example.com",
-		HashedPassword: "password123",
-	}
+	authService := service.NewAuthService(userRepo)
 
-	err = userRepo.CreateUser(ctx, testUser)
+	log.Println("Attempting to register a new user via auth service...")
+
+	newUser, err := authService.Register(ctx, "Service User", "service.user@example.com", "strongpassword123")
 	if err != nil {
-		log.Printf("Failed to create test user: %v", err)
+		log.Printf("Failed to register user: %v", err)
 	} else {
-		log.Printf("Successfully created test user with ID: %s", testUser.ID)
+		log.Printf("Successfully registered user with ID: %s and Name: %s", newUser.ID, newUser.Name)
 	}
 
 	fmt.Printf("Starting server on port %s\n", cfg.ServerPort)
