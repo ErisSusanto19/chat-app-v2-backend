@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
-	ServerPort  string
+	DatabaseURL  string
+	ServerPort   string
+	JWTSecretKey string
 }
 
 func Load() (*Config, error) {
@@ -28,8 +29,14 @@ func Load() (*Config, error) {
 		port = ":8080"
 	}
 
+	jwtKey := os.Getenv("JWT_SECRET_KEY")
+	if jwtKey == "" {
+		log.Fatal("JWT_SECRET_KEY is not set")
+	}
+
 	return &Config{
-		DatabaseURL: dbURL,
-		ServerPort:  port,
+		DatabaseURL:  dbURL,
+		ServerPort:   port,
+		JWTSecretKey: jwtKey,
 	}, nil
 }

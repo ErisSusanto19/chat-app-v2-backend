@@ -21,6 +21,7 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 
 func (h *AuthHandler) RegisterRoutes(router *chi.Mux) {
 	router.Post("/register", h.register)
+	router.Post("/login", h.login)
 }
 
 type registerRequest struct {
@@ -51,4 +52,35 @@ func (h *AuthHandler) register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type loginResponse struct {
+	Token string `json:"token"`
+}
+
+func (h *AuthHandler) login(w http.ResponseWriter, r *http.Request) {
+	var req loginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	token, err := h.authService.Login(r.Context(), req.Email, req.Password)
+	if err != nil {
+		if errors.Is(err, errors.New("invalid email or password")) {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(loginResponse{Token: token})
 }

@@ -40,7 +40,7 @@ func main() {
 	fmt.Printf("Starting server on port %s\n", cfg.ServerPort)
 
 	userRepo := repository.NewPostgresUserRepository(db)
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey)
 	authHandler := handler.NewAuthHandler(authService)
 
 	router := chi.NewRouter()

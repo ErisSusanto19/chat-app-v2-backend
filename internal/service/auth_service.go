@@ -7,22 +7,28 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/repository"
+	"github.com/ErisSusanto19/chat-app-v2-backend/pkg/util"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthService interface {
 	Register(ctx context.Context, name, email, password string) (*domain.User, error)
+	Login(ctx context.Context, email, password string) (string, error)
 }
 
 type authService struct {
-	userRepo repository.UserRepository
+	userRepo     repository.UserRepository
+	jwtSecretKey string
 }
 
-func NewAuthService(userRepo repository.UserRepository) AuthService {
+func NewAuthService(userRepo repository.UserRepository, jwtSecretKey string) AuthService {
 	return &authService{
-		userRepo: userRepo,
+		userRepo:     userRepo,
+		jwtSecretKey: jwtSecretKey,
 	}
 }
 
@@ -58,4 +64,38 @@ func (s *authService) Register(ctx context.Context, name, email, password string
 	newUser.HashedPassword = ""
 
 	return newUser, nil
+}
+
+func (s *authService) Login(ctx context.Context, email, password string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" || password == "" {
+		return "", errors.New("email and password cannot be empty")
+	}
+
+	user, err := s.userRepo.GetUserByEmail(ctx, email)
+	if err != nil {
+		return "", fmt.Errorf("database error: %w", err)
+	}
+	if user == nil {
+		return "", errors.New("invalid email or password")
+	}
+
+	if !util.CheckPasswordHash(password, user.HashedPassword) {
+		return "", errors.New("invalid email or password")
+	}
+
+	claims := jwt.MapClaims{
+		"sub": user.ID,
+		"exp": time.Now().Add(time.Hour * 24).Unix(),
+		"iat": time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString([]byte(s.jwtSecretKey))
+	if err != nil {
+		return "", fmt.Errorf("could not create token: %w", err)
+	}
+
+	return tokenString, nil
 }
