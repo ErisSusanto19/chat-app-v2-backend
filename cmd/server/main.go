@@ -48,7 +48,16 @@ func main() {
 	router.Use(middleware.Recoverer)
 
 	router.Route("/api/v1", func(r chi.Router) {
-		authHandler.RegisterRoutes(r.(*chi.Mux))
+
+		r.Group(func(r chi.Router) {
+			r.Post("/register", authHandler.Register)
+			r.Post("/login", authHandler.Login)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(handler.AuthMiddleware(cfg.JWTSecretKey))
+			r.Get("/me", authHandler.Me)
+		})
 	})
 
 	log.Printf("Starting server on port %s", cfg.ServerPort)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -20,8 +21,8 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) RegisterRoutes(router *chi.Mux) {
-	router.Post("/register", h.register)
-	router.Post("/login", h.login)
+	router.Post("/register", h.Register)
+	router.Post("/login", h.Login)
 }
 
 type registerRequest struct {
@@ -30,7 +31,7 @@ type registerRequest struct {
 	Password string `json:"password"`
 }
 
-func (h *AuthHandler) register(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -63,7 +64,7 @@ type loginResponse struct {
 	Token string `json:"token"`
 }
 
-func (h *AuthHandler) login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -83,4 +84,26 @@ func (h *AuthHandler) login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(loginResponse{Token: token})
+}
+
+func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(UserContextKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "Could not retrieve user from context", http.StatusInternalServerError)
+		return
+	}
+
+	user, err := h.authService.GetProfile(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, errors.New("user not found")) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
 }

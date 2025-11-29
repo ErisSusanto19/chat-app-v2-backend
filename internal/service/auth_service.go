@@ -13,11 +13,13 @@ import (
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/repository"
 	"github.com/ErisSusanto19/chat-app-v2-backend/pkg/util"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type AuthService interface {
 	Register(ctx context.Context, name, email, password string) (*domain.User, error)
 	Login(ctx context.Context, email, password string) (string, error)
+	GetProfile(ctx context.Context, userID uuid.UUID) (*domain.User, error)
 }
 
 type authService struct {
@@ -98,4 +100,15 @@ func (s *authService) Login(ctx context.Context, email, password string) (string
 	}
 
 	return tokenString, nil
+}
+
+func (s *authService) GetProfile(ctx context.Context, userID uuid.UUID) (*domain.User, error) {
+	user, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+	return user, nil
 }
