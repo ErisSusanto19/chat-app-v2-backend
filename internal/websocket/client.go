@@ -31,7 +31,7 @@ func (c *Client) ReadPump() {
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := c.Conn.ReadMessage()
+		_, rawMessage, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
@@ -39,7 +39,11 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		c.Hub.Broadcast <- message
+		hubMsg := &HubMessage{
+			RawMessage: rawMessage,
+			Sender:     c,
+		}
+		c.Hub.Broadcast <- hubMsg
 	}
 }
 

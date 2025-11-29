@@ -41,11 +41,16 @@ func main() {
 	fmt.Printf("Starting server on port %s\n", cfg.ServerPort)
 
 	userRepo := repository.NewPostgresUserRepository(db)
-	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey)
-	authHandler := handler.NewAuthHandler(authService)
+	convRepo := repository.NewPostgresConversationRepository(db)
+	msgRepo := repository.NewPostgresMessageRepository(db)
 
-	hub := ws.NewHub()
+	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey)
+	chatService := service.NewChatService(msgRepo, convRepo)
+
+	hub := ws.NewHub(chatService)
 	go hub.Run()
+
+	authHandler := handler.NewAuthHandler(authService)
 	wsHandler := handler.NewWebsocketHandler(hub)
 
 	router := chi.NewRouter()
