@@ -13,6 +13,7 @@ import (
 
 type ChatService interface {
 	ProcessAndSaveMessage(ctx context.Context, senderID, conversationID uuid.UUID, content string) (*domain.Message, []uuid.UUID, error)
+	StartOrGetPrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
 }
 
 type chatService struct {
@@ -51,4 +52,21 @@ func (s *chatService) ProcessAndSaveMessage(ctx context.Context, senderID, conve
 	}
 
 	return newMessage, participants, nil
+}
+
+func (s *chatService) StartOrGetPrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error) {
+	if creatorID == partnerID {
+		return nil, errors.New("cannot start a conversation with yourself")
+	}
+
+	existingConvID, err := s.convRepo.FindPrivateConversation(ctx, creatorID, partnerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingConvID != nil {
+		return &domain.Conversation{ID: *existingConvID}, nil
+	}
+
+	return s.convRepo.CreatePrivateConversation(ctx, creatorID, partnerID)
 }

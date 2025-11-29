@@ -52,6 +52,7 @@ func main() {
 
 	authHandler := handler.NewAuthHandler(authService)
 	wsHandler := handler.NewWebsocketHandler(hub)
+	convHandler := handler.NewConversationHandler(chatService)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -68,6 +69,7 @@ func main() {
 			r.Use(handler.AuthMiddleware(cfg.JWTSecretKey))
 			r.Get("/me", authHandler.Me)
 			r.Get("/ws", wsHandler.ServeWs)
+			r.Post("/conversations", convHandler.StartPrivateConversation)
 		})
 	})
 
