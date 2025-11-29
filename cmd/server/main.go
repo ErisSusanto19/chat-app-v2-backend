@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	ws "github.com/ErisSusanto19/chat-app-v2-backend/internal/websocket"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -43,6 +44,10 @@ func main() {
 	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey)
 	authHandler := handler.NewAuthHandler(authService)
 
+	hub := ws.NewHub()
+	go hub.Run()
+	wsHandler := handler.NewWebsocketHandler(hub)
+
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
@@ -57,6 +62,7 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(handler.AuthMiddleware(cfg.JWTSecretKey))
 			r.Get("/me", authHandler.Me)
+			r.Get("/ws", wsHandler.ServeWs)
 		})
 	})
 
