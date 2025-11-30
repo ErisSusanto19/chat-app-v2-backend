@@ -4,6 +4,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
 	"github.com/google/uuid"
@@ -13,8 +14,47 @@ type ConversationHandler struct {
 	chatService service.ChatService
 }
 
+type conversationPreviewResponse struct {
+	ID                   uuid.UUID  `json:"id"`
+	IsGroup              bool       `json:"is_group"`
+	Name                 string     `json:"name"`
+	Image                *string    `json:"image,omitempty"`
+	LastMessage          *string    `json:"last_message,omitempty"`
+	LastMessageTimestamp *time.Time `json:"last_message_timestamp,omitempty"`
+}
+
 func NewConversationHandler(chatService service.ChatService) *ConversationHandler {
 	return &ConversationHandler{chatService: chatService}
+}
+
+func (h *ConversationHandler) GetConversations(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(UserContextKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	previews, err := h.chatService.GetConversationsForUser(r.Context(), userID)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	responses := make([]conversationPreviewResponse, 0, len(previews))
+	for _, p := range previews {
+		responses = append(responses, conversationPreviewResponse{
+			ID:                   p.ID,
+			IsGroup:              p.IsGroup,
+			Name:                 p.Name,
+			Image:                p.Image,
+			LastMessage:          p.LastMessage,
+			LastMessageTimestamp: p.LastMessageTimestamp,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(responses)
 }
 
 type startConversationRequest struct {

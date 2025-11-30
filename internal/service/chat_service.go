@@ -14,6 +14,7 @@ import (
 type ChatService interface {
 	ProcessAndSaveMessage(ctx context.Context, senderID, conversationID uuid.UUID, content string) (*domain.Message, []uuid.UUID, error)
 	StartOrGetPrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
+	GetConversationsForUser(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error)
 }
 
 type chatService struct {
@@ -69,4 +70,8 @@ func (s *chatService) StartOrGetPrivateConversation(ctx context.Context, creator
 	}
 
 	return s.convRepo.CreatePrivateConversation(ctx, creatorID, partnerID)
+}
+
+func (s *chatService) GetConversationsForUser(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error) {
+	return s.convRepo.GetConversationPreviews(ctx, userID)
 }

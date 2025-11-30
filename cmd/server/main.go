@@ -70,6 +70,7 @@ func main() {
 			r.Get("/me", authHandler.Me)
 			r.Get("/ws", wsHandler.ServeWs)
 			r.Post("/conversations", convHandler.StartPrivateConversation)
+			r.Get("/conversations", convHandler.GetConversations)
 		})
 	})
 

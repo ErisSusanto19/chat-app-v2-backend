@@ -3,15 +3,26 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
 	"github.com/google/uuid"
 )
 
+type ConversationPreview struct {
+	ID                   uuid.UUID
+	IsGroup              bool
+	Name                 string
+	Image                *string
+	LastMessage          *string
+	LastMessageTimestamp *time.Time
+}
+
 type ConversationRepository interface {
 	GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
 	FindPrivateConversation(ctx context.Context, userID1, userID2 uuid.UUID) (*uuid.UUID, error)
 	CreatePrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
+	GetConversationPreviews(ctx context.Context, userID uuid.UUID) ([]*ConversationPreview, error)
 }
 
 type postgresConversationRepository struct {
@@ -100,4 +111,59 @@ func (r *postgresConversationRepository) CreatePrivateConversation(ctx context.C
 	}
 
 	return conv, nil
+}
+
+func (r *postgresConversationRepository) GetConversationPreviews(ctx context.Context, userID uuid.UUID) ([]*ConversationPreview, error) {
+	// query yang kompleks:
+	// 1. mulai dari user_conversations (uc1) untuk menemukan semua percakapan milik userID.
+	// 2. JOIN dengan conversations (c) untuk mendapatkan detail dasar.
+	// 3. LEFT JOIN dengan messages (m) pada last_message_id untuk mendapatkan pesan terakhir. LEFT JOIN penting karena percakapan baru mungkin belum punya pesan.
+	// 4. menemukan partner dengan LEFT JOIN lagi ke user_conversations (uc2) dengan kondisi `uc2.user_id != $1` untuk menemukan baris milik partner.
+	// 5. LEFT JOIN ke users (p) untuk mendapatkan detail partner.
+	// 6. COALESCE(c.name, p.name) adalah trik SQL: jika c.name (nama grup) ada, gunakan itu. Jika tidak, gunakan p.name (nama partner).
+	// 7. ORDER BY m.created_at DESC NULLS LAST: Urutkan berdasarkan pesan terbaru. Percakapan tanpa pesan diletakkan di akhir.
+	query := `
+		SELECT
+			c.id,
+			c.is_group,
+			COALESCE(c.name, p.name) AS conversation_name,
+			COALESCE(c.image, p.image) AS conversation_image,
+			m.content ->> 'message' AS last_message,
+			m.created_at AS last_message_timestamp
+		FROM user_conversations uc1
+		JOIN conversations c ON uc1.conversation_id = c.id
+		LEFT JOIN messages m ON c.last_message_id = m.id
+		LEFT JOIN user_conversations uc2 ON c.id = uc2.conversation_id AND uc2.user_id != $1
+		LEFT JOIN users p ON uc2.user_id = p.id AND c.is_group = FALSE
+		WHERE uc1.user_id = $1
+		ORDER BY m.created_at DESC NULLS LAST
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var previews []*ConversationPreview
+	for rows.Next() {
+		p := &ConversationPreview{}
+		var lastMessage sql.NullString
+		var lastMessageTimestamp sql.NullTime
+
+		if err := rows.Scan(&p.ID, &p.IsGroup, &p.Name, &p.Image, &lastMessage, &lastMessageTimestamp); err != nil {
+			return nil, err
+		}
+
+		if lastMessage.Valid {
+			p.LastMessage = &lastMessage.String
+		}
+		if lastMessageTimestamp.Valid {
+			p.LastMessageTimestamp = &lastMessageTimestamp.Time
+		}
+
+		previews = append(previews, p)
+	}
+
+	return previews, nil
 }
