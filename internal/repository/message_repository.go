@@ -13,6 +13,7 @@ import (
 
 type MessageRepository interface {
 	CreateMessage(ctx context.Context, message *domain.Message) error
+	GetMessagesByConversationID(ctx context.Context, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error)
 }
 
 type postgresMessageRepository struct {
@@ -53,4 +54,52 @@ func (r *postgresMessageRepository) CreateMessage(ctx context.Context, message *
 	}
 
 	return tx.Commit()
+}
+
+func (r *postgresMessageRepository) GetMessagesByConversationID(ctx context.Context, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error) {
+	query := `
+		SELECT id, sender_id, conversation_id, status, status_changed_at, content,
+		       disappear_for_all, is_edited, created_at, updated_at
+		FROM messages
+		WHERE conversation_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+		OFFSET $3
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, conversationID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []*domain.Message
+	for rows.Next() {
+		var msg domain.Message
+		var contentJSON []byte
+		var statusChangedAtJSON []byte
+
+		err := rows.Scan(
+			&msg.ID, &msg.SenderID, &msg.ConversationID, &msg.Status, &statusChangedAtJSON,
+			&contentJSON, &msg.DisappearForAll, &msg.IsEdited, &msg.CreatedAt, &msg.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if contentJSON != nil {
+			if err := json.Unmarshal(contentJSON, &msg.Content); err != nil {
+				return nil, err
+			}
+		}
+		if statusChangedAtJSON != nil {
+			if err := json.Unmarshal(statusChangedAtJSON, &msg.StatusChangedAt); err != nil {
+				return nil, err
+			}
+		}
+
+		messages = append(messages, &msg)
+	}
+
+	return messages, nil
 }

@@ -71,6 +71,7 @@ func main() {
 			r.Get("/ws", wsHandler.ServeWs)
 			r.Post("/conversations", convHandler.StartPrivateConversation)
 			r.Get("/conversations", convHandler.GetConversations)
+			r.Get("/conversations/{conversationID}/messages", convHandler.GetMessages)
 		})
 	})
 

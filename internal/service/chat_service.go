@@ -15,6 +15,7 @@ type ChatService interface {
 	ProcessAndSaveMessage(ctx context.Context, senderID, conversationID uuid.UUID, content string) (*domain.Message, []uuid.UUID, error)
 	StartOrGetPrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
 	GetConversationsForUser(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error)
+	GetMessageHistory(ctx context.Context, userID, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error)
 }
 
 type chatService struct {
@@ -74,4 +75,16 @@ func (s *chatService) StartOrGetPrivateConversation(ctx context.Context, creator
 
 func (s *chatService) GetConversationsForUser(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error) {
 	return s.convRepo.GetConversationPreviews(ctx, userID)
+}
+
+func (s *chatService) GetMessageHistory(ctx context.Context, userID, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error) {
+	participants, err := s.convRepo.GetParticipantIDs(ctx, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	if !slices.Contains(participants, userID) {
+		return nil, errors.New("user is not a participant of this conversation")
+	}
+
+	return s.msgRepo.GetMessagesByConversationID(ctx, conversationID, limit, offset)
 }

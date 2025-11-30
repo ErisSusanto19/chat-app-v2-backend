@@ -4,9 +4,12 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -89,4 +92,49 @@ func (h *ConversationHandler) StartPrivateConversation(w http.ResponseWriter, r 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(conversation)
+}
+
+func (h *ConversationHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(UserContextKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	conversationIDStr := chi.URLParam(r, "conversationID")
+	conversationID, err := uuid.Parse(conversationIDStr)
+	if err != nil {
+		http.Error(w, "Invalid conversation ID format", http.StatusBadRequest)
+		return
+	}
+
+	limitStr := r.URL.Query().Get("limit")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 50
+	}
+
+	offsetStr := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	messages, err := h.chatService.GetMessageHistory(r.Context(), userID, conversationID, limit, offset)
+	if err != nil {
+		if err.Error() == "user is not a participant of this conversation" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if messages == nil {
+		messages = []*domain.Message{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(messages)
 }
