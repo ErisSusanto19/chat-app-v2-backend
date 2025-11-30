@@ -14,6 +14,7 @@ import (
 type MessageRepository interface {
 	CreateMessage(ctx context.Context, message *domain.Message) error
 	GetMessagesByConversationID(ctx context.Context, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error)
+	UpdateMessagesStatus(ctx context.Context, messageIDs []uuid.UUID, status string) error
 }
 
 type postgresMessageRepository struct {
@@ -102,4 +103,24 @@ func (r *postgresMessageRepository) GetMessagesByConversationID(ctx context.Cont
 	}
 
 	return messages, nil
+}
+
+func (r *postgresMessageRepository) UpdateMessagesStatus(ctx context.Context, messageIDs []uuid.UUID, status string) error {
+	statusChangeField := "delivered_at"
+	if status == "read" {
+		statusChangeField = "read_at"
+	}
+
+	jsonbUpdateQuery := "jsonb_build_object($1, to_jsonb(NOW()))"
+
+	query := `
+		UPDATE messages
+		SET 
+			status = $2,
+			status_changed_at = COALESCE(status_changed_at, '{}'::jsonb) || ` + jsonbUpdateQuery + `
+		WHERE id = ANY($3) AND status != 'read' -- Hanya update jika belum dibaca
+	`
+
+	_, err := r.db.ExecContext(ctx, query, statusChangeField, status, messageIDs)
+	return err
 }

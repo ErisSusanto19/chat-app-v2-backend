@@ -107,7 +107,47 @@ func (h *Hub) handleIncomingMessage(hubMsg *HubMessage) {
 			}
 		}
 
+	case "message_delivered_ack":
+		payloadBytes, _ := json.Marshal(msg.Payload)
+		var payload DeliveredMessagePayload
+		if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+			log.Printf("Error unmarshalling delivered_ack payload: %v", err)
+			return
+		}
+
+		participants, err := h.ChatService.ProcessStatusUpdate(
+			context.Background(),
+			hubMsg.Sender.UserID,
+			payload.ConversationID,
+			[]uuid.UUID{payload.MessageID},
+			"delivered",
+		)
+		if err != nil {
+			log.Printf("Error processing delivered ack: %v", err)
+			return
+		}
+
+		h.broadcastStatusUpdate(participants, payload.ConversationID, []uuid.UUID{payload.MessageID}, "delivered")
+
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
+	}
+}
+
+func (h *Hub) broadcastStatusUpdate(participants []uuid.UUID, conversationID uuid.UUID, messageIDs []uuid.UUID, status string) {
+	replyPayload := StatusUpdatePayload{
+		ConversationID: conversationID,
+		MessageIDs:     messageIDs,
+		Status:         status,
+	}
+	replyMsg := Message{Type: "message_status_update", Payload: replyPayload}
+	replyBytes, _ := json.Marshal(replyMsg)
+
+	for _, participantID := range participants {
+		if userClients, ok := h.Clients[participantID]; ok {
+			for client := range userClients {
+				client.Send <- replyBytes
+			}
+		}
 	}
 }
