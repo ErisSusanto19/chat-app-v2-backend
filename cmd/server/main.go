@@ -43,9 +43,11 @@ func main() {
 	userRepo := repository.NewPostgresUserRepository(db)
 	convRepo := repository.NewPostgresConversationRepository(db)
 	msgRepo := repository.NewPostgresMessageRepository(db)
+	contactRepo := repository.NewPostgresContactRepository(db)
 
 	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey)
 	chatService := service.NewChatService(msgRepo, convRepo)
+	contactService := service.NewContactService(contactRepo, userRepo)
 
 	hub := ws.NewHub(chatService)
 	go hub.Run()
@@ -53,6 +55,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	wsHandler := handler.NewWebsocketHandler(hub)
 	convHandler := handler.NewConversationHandler(chatService)
+	contactHandler := handler.NewContactHandler(contactService)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -72,6 +75,8 @@ func main() {
 			r.Post("/conversations", convHandler.StartPrivateConversation)
 			r.Get("/conversations", convHandler.GetConversations)
 			r.Get("/conversations/{conversationID}/messages", convHandler.GetMessages)
+			r.Post("/contacts", contactHandler.AddContact)
+			r.Get("/contacts", contactHandler.GetContacts)
 		})
 	})
 
