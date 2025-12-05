@@ -6,6 +6,7 @@ import (
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -66,4 +67,100 @@ func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(contacts)
+}
+
+type updateContactRequest struct {
+	AliasName string `json:"alias_name"`
+}
+
+func (h *ContactHandler) UpdateContact(w http.ResponseWriter, r *http.Request) {
+	ownerID, _ := r.Context().Value(UserContextKey).(uuid.UUID)
+
+	contactID, err := uuid.Parse(chi.URLParam(r, "contactID"))
+	if err != nil {
+		http.Error(w, "Invalid contact ID", http.StatusBadRequest)
+		return
+	}
+
+	var req updateContactRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = h.contactService.UpdateContact(r.Context(), contactID, ownerID, req.AliasName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ContactHandler) DeleteContact(w http.ResponseWriter, r *http.Request) {
+	ownerID, _ := r.Context().Value(UserContextKey).(uuid.UUID)
+
+	contactID, err := uuid.Parse(chi.URLParam(r, "contactID"))
+	if err != nil {
+		http.Error(w, "Invalid contact ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.contactService.DeleteContact(r.Context(), contactID, ownerID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type contactDetailResponse struct {
+	ID        uuid.UUID `json:"id"`
+	AliasName string    `json:"alias_name"`
+	Email     string    `json:"email"`
+	Status    string    `json:"status"`
+	User      *struct {
+		ID    uuid.UUID `json:"id"`
+		Name  string    `json:"name"`
+		Image *string   `json:"image,omitempty"`
+	} `json:"user,omitempty"`
+}
+
+func (h *ContactHandler) GetContactDetail(w http.ResponseWriter, r *http.Request) {
+	ownerID, _ := r.Context().Value(UserContextKey).(uuid.UUID)
+
+	contactID, err := uuid.Parse(chi.URLParam(r, "contactID"))
+	if err != nil {
+		http.Error(w, "Invalid contact ID", http.StatusBadRequest)
+		return
+	}
+
+	detail, err := h.contactService.GetContactDetail(r.Context(), contactID, ownerID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	response := contactDetailResponse{
+		ID:        detail.ID,
+		AliasName: detail.AliasName,
+		Email:     detail.Email,
+		Status:    detail.Status,
+	}
+	if detail.ContactUserID.Valid {
+		response.User = &struct {
+			ID    uuid.UUID `json:"id"`
+			Name  string    `json:"name"`
+			Image *string   `json:"image,omitempty"`
+		}{
+			ID:    detail.ContactUserID.UUID,
+			Name:  *detail.ContactName,
+			Image: detail.ContactImage,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
