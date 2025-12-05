@@ -78,6 +78,7 @@ func main() {
 			r.Post("/contacts", contactHandler.AddContact)
 			r.Get("/contacts", contactHandler.GetContacts)
 			r.Post("/conversations/group", convHandler.CreateGroup)
+			r.Post("/conversations/{conversationID}/participants", convHandler.AddParticipants)
 		})
 	})
 

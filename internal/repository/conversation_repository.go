@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
@@ -24,6 +25,8 @@ type ConversationRepository interface {
 	CreatePrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
 	GetConversationPreviews(ctx context.Context, userID uuid.UUID) ([]*ConversationPreview, error)
 	CreateGroupConversation(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
+	AddParticipantsToGroup(ctx context.Context, conversationID uuid.UUID, userIDs []uuid.UUID) error
+	GetUserRole(ctx context.Context, userID, conversationID uuid.UUID) (string, error)
 }
 
 type postgresConversationRepository struct {
@@ -217,4 +220,47 @@ func (r *postgresConversationRepository) CreateGroupConversation(ctx context.Con
 	}
 
 	return conv, nil
+}
+
+func (r *postgresConversationRepository) AddParticipantsToGroup(ctx context.Context, conversationID uuid.UUID, userIDs []uuid.UUID) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	query := `INSERT INTO user_conversations (id, user_id, conversation_id, role, created_at, updated_at)
+	          VALUES ($1, $2, $3, 'member', NOW(), NOW())
+			  ON CONFLICT (user_id, conversation_id) DO NOTHING`
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, userID := range userIDs {
+		_, err := stmt.ExecContext(ctx, uuid.New(), userID, conversationID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (r *postgresConversationRepository) GetUserRole(ctx context.Context, userID, conversationID uuid.UUID) (string, error) {
+	var role sql.NullString
+	query := `SELECT role FROM user_conversations WHERE user_id = $1 AND conversation_id = $2`
+	err := r.db.QueryRowContext(ctx, query, userID, conversationID).Scan(&role)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", errors.New("user is not a member of this conversation")
+		}
+		return "", err
+	}
+	if !role.Valid {
+		return "member", nil
+	}
+	return role.String, nil
 }

@@ -18,6 +18,7 @@ type ChatService interface {
 	ProcessStatusUpdate(ctx context.Context, updaterID uuid.UUID, conversationID uuid.UUID, messageIDs []uuid.UUID, status string) ([]uuid.UUID, error)
 	CreateGroup(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
 	GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
+	AddGroupMembers(ctx context.Context, requesterID, conversationID uuid.UUID, newUserIDs []uuid.UUID) error
 }
 
 type chatService struct {
@@ -131,4 +132,23 @@ func (s *chatService) CreateGroup(ctx context.Context, creatorID uuid.UUID, name
 
 func (s *chatService) GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error) {
 	return s.convRepo.GetParticipantIDs(ctx, conversationID)
+}
+
+func (s *chatService) AddGroupMembers(ctx context.Context, requesterID, conversationID uuid.UUID, newUserIDs []uuid.UUID) error {
+
+	role, err := s.convRepo.GetUserRole(ctx, requesterID, conversationID)
+
+	if err != nil {
+		return err
+	}
+
+	if role != "admin" {
+		return errors.New("only admin can add members to the group")
+	}
+
+	if err := s.convRepo.AddParticipantsToGroup(ctx, conversationID, newUserIDs); err != nil {
+		return err
+	}
+
+	return nil
 }

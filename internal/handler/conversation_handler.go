@@ -177,3 +177,50 @@ func (h *ConversationHandler) CreateGroup(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(group)
 }
+
+type addParticipantsRequest struct {
+	UserIDs []string `json:"user_ids"`
+}
+
+func (h *ConversationHandler) AddParticipants(w http.ResponseWriter, r *http.Request) {
+	requesterID, ok := r.Context().Value(UserContextKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	conversationIDStr := chi.URLParam(r, "conversationID")
+	conversationID, err := uuid.Parse(conversationIDStr)
+	if err != nil {
+		http.Error(w, "Invalid conversation ID format", http.StatusBadRequest)
+		return
+	}
+
+	var req addParticipantsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	newUserIDs := make([]uuid.UUID, 0, len(req.UserIDs))
+	for _, idStr := range req.UserIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			http.Error(w, "Invalid user ID format in list", http.StatusBadRequest)
+			return
+		}
+		newUserIDs = append(newUserIDs, id)
+	}
+
+	err = h.chatService.AddGroupMembers(r.Context(), requesterID, conversationID, newUserIDs)
+	if err != nil {
+		if err.Error() == "only admin can add members to the group" {
+			http.Error(w, "Forbidden: "+err.Error(), http.StatusForbidden)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
