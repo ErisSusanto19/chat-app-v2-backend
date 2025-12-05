@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"slices"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
@@ -19,6 +20,8 @@ type ChatService interface {
 	CreateGroup(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
 	GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
 	AddGroupMembers(ctx context.Context, requesterID, conversationID uuid.UUID, newUserIDs []uuid.UUID) error
+	RemoveGroupMember(ctx context.Context, requesterID, userIDToRemove, conversationID uuid.UUID) error
+	LeaveGroup(ctx context.Context, userID, conversationID uuid.UUID) error
 }
 
 type chatService struct {
@@ -148,6 +151,56 @@ func (s *chatService) AddGroupMembers(ctx context.Context, requesterID, conversa
 
 	if err := s.convRepo.AddParticipantsToGroup(ctx, conversationID, newUserIDs); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (s *chatService) RemoveGroupMember(ctx context.Context, requesterID, userIDToRemove, conversationID uuid.UUID) error {
+	requesterRole, err := s.convRepo.GetUserRole(ctx, requesterID, conversationID)
+	if err != nil {
+		return err
+	}
+	if requesterRole != "admin" {
+		return errors.New("only admin can remove members")
+	}
+
+	if requesterID == userIDToRemove {
+		return errors.New("admin cannot remove themselves, use leave group endpoint")
+	}
+
+	targetRole, err := s.convRepo.GetUserRole(ctx, userIDToRemove, conversationID)
+	if err != nil {
+		return err
+	}
+	_ = targetRole
+
+	return s.convRepo.RemoveParticipant(ctx, conversationID, userIDToRemove)
+}
+
+func (s *chatService) LeaveGroup(ctx context.Context, userID, conversationID uuid.UUID) error {
+	role, err := s.convRepo.GetUserRole(ctx, userID, conversationID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.convRepo.RemoveParticipant(ctx, conversationID, userID); err != nil {
+		return err
+	}
+
+	if role == "admin" {
+		remaining, err := s.convRepo.GetParticipantIDs(ctx, conversationID)
+		if err != nil {
+			log.Printf("Failed to get remaining participants after admin left: %v", err)
+			return nil
+		}
+
+		if len(remaining) > 0 {
+			if err := s.convRepo.PromoteNewAdmin(ctx, conversationID); err != nil {
+				log.Printf("Failed to promote new admin: %v", err)
+			}
+		}
+
 	}
 
 	return nil

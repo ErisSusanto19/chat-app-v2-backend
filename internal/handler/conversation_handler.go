@@ -224,3 +224,49 @@ func (h *ConversationHandler) AddParticipants(w http.ResponseWriter, r *http.Req
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *ConversationHandler) RemoveParticipant(w http.ResponseWriter, r *http.Request) {
+	requesterID, _ := r.Context().Value(UserContextKey).(uuid.UUID)
+
+	conversationID, err := uuid.Parse(chi.URLParam(r, "conversationID"))
+	if err != nil {
+		http.Error(w, "Invalid conversation ID", http.StatusBadRequest)
+		return
+	}
+
+	userIDToRemove, err := uuid.Parse(chi.URLParam(r, "userID"))
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.chatService.RemoveGroupMember(r.Context(), requesterID, userIDToRemove, conversationID)
+	if err != nil {
+		if err.Error() == "only admin can remove members" {
+			http.Error(w, "Forbidden: "+err.Error(), http.StatusForbidden)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ConversationHandler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
+	requesterID, _ := r.Context().Value(UserContextKey).(uuid.UUID)
+
+	conversationID, err := uuid.Parse(chi.URLParam(r, "conversationID"))
+	if err != nil {
+		http.Error(w, "Invalid conversation ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.chatService.LeaveGroup(r.Context(), requesterID, conversationID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

@@ -27,6 +27,8 @@ type ConversationRepository interface {
 	CreateGroupConversation(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
 	AddParticipantsToGroup(ctx context.Context, conversationID uuid.UUID, userIDs []uuid.UUID) error
 	GetUserRole(ctx context.Context, userID, conversationID uuid.UUID) (string, error)
+	RemoveParticipant(ctx context.Context, conversationID, userID uuid.UUID) error
+	PromoteNewAdmin(ctx context.Context, conversationID uuid.UUID) error
 }
 
 type postgresConversationRepository struct {
@@ -263,4 +265,25 @@ func (r *postgresConversationRepository) GetUserRole(ctx context.Context, userID
 		return "member", nil
 	}
 	return role.String, nil
+}
+
+func (r *postgresConversationRepository) RemoveParticipant(ctx context.Context, conversationID, userID uuid.UUID) error {
+	query := `DELETE FROM user_conversations WHERE conversation_id = $1 AND user_id = $2`
+	_, err := r.db.ExecContext(ctx, query, conversationID, userID)
+	return err
+}
+
+func (r *postgresConversationRepository) PromoteNewAdmin(ctx context.Context, conversationID uuid.UUID) error {
+	query := `
+		UPDATE user_conversations
+		SET role = 'admin'
+		WHERE id = (
+			SELECT id FROM user_conversations
+			WHERE conversation_id = $1 AND (role = 'member' OR role IS NULL)
+			ORDER BY created_at ASC
+			LIMIT 1
+		)
+	`
+	_, err := r.db.ExecContext(ctx, query, conversationID)
+	return err
 }
