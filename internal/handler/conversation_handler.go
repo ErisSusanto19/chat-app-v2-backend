@@ -138,3 +138,42 @@ func (h *ConversationHandler) GetMessages(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(messages)
 }
+
+type createGroupRequest struct {
+	Name           string   `json:"name"`
+	ParticipantIDs []string `json:"participant_ids"`
+}
+
+func (h *ConversationHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	creatorID, ok := r.Context().Value(UserContextKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req createGroupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	participantIDs := make([]uuid.UUID, 0, len(req.ParticipantIDs))
+	for _, idStr := range req.ParticipantIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			http.Error(w, "Invalid participant ID format", http.StatusBadRequest)
+			return
+		}
+		participantIDs = append(participantIDs, id)
+	}
+
+	group, err := h.chatService.CreateGroup(r.Context(), creatorID, req.Name, participantIDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(group)
+}

@@ -23,6 +23,7 @@ type ConversationRepository interface {
 	FindPrivateConversation(ctx context.Context, userID1, userID2 uuid.UUID) (*uuid.UUID, error)
 	CreatePrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
 	GetConversationPreviews(ctx context.Context, userID uuid.UUID) ([]*ConversationPreview, error)
+	CreateGroupConversation(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
 }
 
 type postgresConversationRepository struct {
@@ -166,4 +167,54 @@ func (r *postgresConversationRepository) GetConversationPreviews(ctx context.Con
 	}
 
 	return previews, nil
+}
+
+func (r *postgresConversationRepository) CreateGroupConversation(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	conv := &domain.Conversation{
+		ID:        uuid.New(),
+		IsGroup:   true,
+		Name:      &name,
+		CreatedBy: uuid.NullUUID{UUID: creatorID, Valid: true},
+	}
+	convQuery := `INSERT INTO conversations (id, is_group, name, created_by, created_at, updated_at)
+	              VALUES ($1, $2, $3, $4, NOW(), NOW())`
+	_, err = tx.ExecContext(ctx, convQuery, conv.ID, conv.IsGroup, conv.Name, conv.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+
+	userConvQuery := `INSERT INTO user_conversations (id, user_id, conversation_id, role, created_at, updated_at)
+	                  VALUES ($1, $2, $3, $4, NOW(), NOW())`
+
+	stmt, err := tx.PrepareContext(ctx, userConvQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	for _, participantID := range participantIDs {
+		var role string
+		if participantID == creatorID {
+			role = "admin"
+		} else {
+			role = "member"
+		}
+
+		_, err := stmt.ExecContext(ctx, uuid.New(), participantID, conv.ID, role)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return conv, nil
 }

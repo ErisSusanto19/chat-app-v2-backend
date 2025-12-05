@@ -1,4 +1,3 @@
-// File: internal/service/chat_service.go
 package service
 
 import (
@@ -17,6 +16,7 @@ type ChatService interface {
 	GetConversationsForUser(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error)
 	GetMessageHistory(ctx context.Context, userID, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error)
 	ProcessStatusUpdate(ctx context.Context, updaterID uuid.UUID, conversationID uuid.UUID, messageIDs []uuid.UUID, status string) ([]uuid.UUID, error)
+	CreateGroup(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
 }
 
 type chatService struct {
@@ -104,4 +104,26 @@ func (s *chatService) ProcessStatusUpdate(ctx context.Context, updaterID uuid.UU
 	}
 
 	return participants, nil
+}
+
+func (s *chatService) CreateGroup(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error) {
+	if name == "" {
+		return nil, errors.New("group name cannot be empty")
+	}
+	if len(participantIDs) < 1 {
+		return nil, errors.New("a group must have at least one participant besides the creator")
+	}
+
+	fullParticipantList := append(participantIDs, creatorID)
+
+	uniqueParticipants := make(map[uuid.UUID]bool)
+	finalParticipants := []uuid.UUID{}
+	for _, id := range fullParticipantList {
+		if !uniqueParticipants[id] {
+			uniqueParticipants[id] = true
+			finalParticipants = append(finalParticipants, id)
+		}
+	}
+
+	return s.convRepo.CreateGroupConversation(ctx, creatorID, name, finalParticipants)
 }
