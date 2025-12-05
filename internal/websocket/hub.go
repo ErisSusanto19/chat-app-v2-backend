@@ -129,6 +129,12 @@ func (h *Hub) handleIncomingMessage(hubMsg *HubMessage) {
 
 		h.broadcastStatusUpdate(participants, payload.ConversationID, []uuid.UUID{payload.MessageID}, "delivered")
 
+	case "start_typing":
+		h.handleTypingEvent(hubMsg, msg, "user_typing")
+
+	case "stop_typing":
+		h.handleTypingEvent(hubMsg, msg, "user_stopped_typing")
+
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 	}
@@ -144,6 +150,41 @@ func (h *Hub) broadcastStatusUpdate(participants []uuid.UUID, conversationID uui
 	replyBytes, _ := json.Marshal(replyMsg)
 
 	for _, participantID := range participants {
+		if userClients, ok := h.Clients[participantID]; ok {
+			for client := range userClients {
+				client.Send <- replyBytes
+			}
+		}
+	}
+}
+
+func (h *Hub) handleTypingEvent(hubMsg *HubMessage, msg Message, notificationType string) {
+	payloadBytes, _ := json.Marshal(msg.Payload)
+	var payload TypingPayload
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		log.Printf("Error unmarshalling typing payload: %v", err)
+		return
+	}
+
+	participants, err := h.ChatService.GetParticipantIDs(context.Background(), payload.ConversationID)
+	if err != nil {
+		log.Printf("Could not get participants for typing event: %v", err)
+		return
+	}
+
+	notificationPayload := TypingNotificationPayload{
+		ConversationID: payload.ConversationID,
+		UserID:         hubMsg.Sender.UserID,
+		UserName:       "Someone",
+	}
+	replyMsg := Message{Type: notificationType, Payload: notificationPayload}
+	replyBytes, _ := json.Marshal(replyMsg)
+
+	for _, participantID := range participants {
+		if participantID == hubMsg.Sender.UserID {
+			continue
+		}
+
 		if userClients, ok := h.Clients[participantID]; ok {
 			for client := range userClients {
 				client.Send <- replyBytes

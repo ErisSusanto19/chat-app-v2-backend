@@ -26,3 +26,13 @@ type StatusUpdatePayload struct {
 	ConversationID uuid.UUID   `json:"conversation_id"`
 	Status         string      `json:"status"`
 }
+
+type TypingPayload struct {
+	ConversationID uuid.UUID `json:"conversation_id"`
+}
+
+type TypingNotificationPayload struct {
+	ConversationID uuid.UUID `json:"conversation_id"`
+	UserID         uuid.UUID `json:"user_id"`
+	UserName       string    `json:"user_name"`
+}

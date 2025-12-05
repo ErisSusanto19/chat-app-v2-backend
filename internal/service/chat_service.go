@@ -17,6 +17,7 @@ type ChatService interface {
 	GetMessageHistory(ctx context.Context, userID, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error)
 	ProcessStatusUpdate(ctx context.Context, updaterID uuid.UUID, conversationID uuid.UUID, messageIDs []uuid.UUID, status string) ([]uuid.UUID, error)
 	CreateGroup(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
+	GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
 }
 
 type chatService struct {
@@ -126,4 +127,8 @@ func (s *chatService) CreateGroup(ctx context.Context, creatorID uuid.UUID, name
 	}
 
 	return s.convRepo.CreateGroupConversation(ctx, creatorID, name, finalParticipants)
+}
+
+func (s *chatService) GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error) {
+	return s.convRepo.GetParticipantIDs(ctx, conversationID)
 }
