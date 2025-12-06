@@ -36,3 +36,14 @@ type TypingNotificationPayload struct {
 	UserID         uuid.UUID `json:"user_id"`
 	UserName       string    `json:"user_name"`
 }
+
+type UserAddedToGroupPayload struct {
+	ConversationID uuid.UUID `json:"conversation_id"`
+	AddedByUserID  uuid.UUID `json:"added_by_user_id"`
+	NewMemberID    uuid.UUID `json:"new_member_id"`
+}
+
+type YouWereAddedToGroupPayload struct {
+	ConversationID uuid.UUID `json:"conversation_id"`
+	AddedByUserID  uuid.UUID `json:"added_by_user_id"`
+}

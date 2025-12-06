@@ -192,3 +192,42 @@ func (h *Hub) handleTypingEvent(hubMsg *HubMessage, msg Message, notificationTyp
 		}
 	}
 }
+
+func (h *Hub) NotifyUserAddedToGroup(addedByUserID uuid.UUID, newMemberIDs []uuid.UUID, conversationID uuid.UUID) {
+	participants, err := h.ChatService.GetParticipantIDs(context.Background(), conversationID)
+	if err != nil {
+		log.Printf("Notifier could not get participants: %v", err)
+		return
+	}
+
+	for _, newMemberID := range newMemberIDs {
+		for _, participantID := range participants {
+			var msg Message
+			if participantID == newMemberID {
+				payload := YouWereAddedToGroupPayload{
+					ConversationID: conversationID,
+					AddedByUserID:  addedByUserID,
+				}
+				msg = Message{Type: "you_were_added_to_group", Payload: payload}
+			} else {
+				payload := UserAddedToGroupPayload{
+					ConversationID: conversationID,
+					AddedByUserID:  addedByUserID,
+					NewMemberID:    newMemberID,
+				}
+				msg = Message{Type: "user_added_to_group", Payload: payload}
+			}
+
+			if userClients, ok := h.Clients[participantID]; ok {
+				replyBytes, _ := json.Marshal(msg)
+				for client := range userClients {
+					client.Send <- replyBytes
+				}
+			}
+		}
+	}
+}
+
+func (h *Hub) SetChatService(chatService service.ChatService) {
+	h.ChatService = chatService
+}

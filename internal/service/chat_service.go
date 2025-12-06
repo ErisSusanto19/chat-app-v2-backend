@@ -27,10 +27,15 @@ type ChatService interface {
 type chatService struct {
 	msgRepo  repository.MessageRepository
 	convRepo repository.ConversationRepository
+	notifier Notifier
 }
 
-func NewChatService(msgRepo repository.MessageRepository, convRepo repository.ConversationRepository) ChatService {
-	return &chatService{msgRepo: msgRepo, convRepo: convRepo}
+func NewChatService(msgRepo repository.MessageRepository, convRepo repository.ConversationRepository, notifier Notifier) ChatService {
+	return &chatService{
+		msgRepo:  msgRepo,
+		convRepo: convRepo,
+		notifier: notifier,
+	}
 }
 
 func (s *chatService) ProcessAndSaveMessage(ctx context.Context, senderID, conversationID uuid.UUID, content string) (*domain.Message, []uuid.UUID, error) {
@@ -151,6 +156,10 @@ func (s *chatService) AddGroupMembers(ctx context.Context, requesterID, conversa
 
 	if err := s.convRepo.AddParticipantsToGroup(ctx, conversationID, newUserIDs); err != nil {
 		return err
+	}
+
+	if s.notifier != nil {
+		go s.notifier.NotifyUserAddedToGroup(requesterID, newUserIDs, conversationID)
 	}
 
 	return nil
