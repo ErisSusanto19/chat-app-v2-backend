@@ -20,6 +20,8 @@ type AuthService interface {
 	Register(ctx context.Context, name, email, password string) (*domain.User, error)
 	Login(ctx context.Context, email, password string) (string, error)
 	GetProfile(ctx context.Context, userID uuid.UUID) (*domain.User, error)
+	UpdateProfile(ctx context.Context, userID uuid.UUID, name string, phoneNumber, image *string) (*domain.User, error)
+	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 }
 
 type authService struct {
@@ -111,4 +113,53 @@ func (s *authService) GetProfile(ctx context.Context, userID uuid.UUID) (*domain
 		return nil, errors.New("user not found")
 	}
 	return user, nil
+}
+
+func (s *authService) UpdateProfile(ctx context.Context, userID uuid.UUID, name string, phoneNumber, image *string) (*domain.User, error) {
+	user, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	if name != "" {
+		user.Name = name
+	}
+	user.PhoneNumber = phoneNumber
+	user.Image = image
+
+	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
+		return nil, err
+	}
+
+	user.HashedPassword = ""
+	return user, nil
+}
+
+func (s *authService) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
+	user, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	if !util.CheckPasswordHash(oldPassword, user.HashedPassword) {
+		return errors.New("incorrect old password")
+	}
+
+	if len(newPassword) < 8 {
+		return errors.New("new password must be at least 8 characters long")
+	}
+	if newPassword == oldPassword {
+		return errors.New("new password cannot be the same as the old password")
+	}
+
+	newHashedPassword, err := util.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return s.userRepo.UpdatePassword(ctx, userID, newHashedPassword)
 }

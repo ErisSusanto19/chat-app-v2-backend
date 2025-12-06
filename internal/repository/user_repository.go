@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
@@ -14,6 +15,8 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user *domain.User) error
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	UpdateUser(ctx context.Context, user *domain.User) error
+	UpdatePassword(ctx context.Context, userID uuid.UUID, newHashedPassword string) error
 }
 
 type postgresUserRepository struct {
@@ -85,10 +88,10 @@ func (r *postgresUserRepository) CreateUser(ctx context.Context, user *domain.Us
 }
 
 func (r *postgresUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	query := `SELECT id, name, email, phone_number, image, created_at, updated_at FROM users WHERE id = $1`
+	query := `SELECT id, name, email, hashed_password, phone_number, image, created_at, updated_at FROM users WHERE id = $1`
 	user := &domain.User{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&user.ID, &user.Name, &user.Email, &user.PhoneNumber,
+		&user.ID, &user.Name, &user.Email, &user.HashedPassword, &user.PhoneNumber,
 		&user.Image, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
@@ -98,4 +101,31 @@ func (r *postgresUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) 
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *postgresUserRepository) UpdateUser(ctx context.Context, user *domain.User) error {
+	query := `
+		UPDATE users
+		SET name = $1, phone_number = $2, image = $3, updated_at = NOW()
+		WHERE id = $4
+	`
+	res, err := r.db.ExecContext(ctx, query, user.Name, user.PhoneNumber, user.Image, user.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("user not found")
+	}
+	return nil
+}
+
+func (r *postgresUserRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, newHashedPassword string) error {
+	query := `UPDATE users SET hashed_password = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, newHashedPassword, userID)
+	return err
 }

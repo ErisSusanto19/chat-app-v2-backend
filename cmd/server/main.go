@@ -70,7 +70,11 @@ func main() {
 
 		r.Group(func(r chi.Router) {
 			r.Use(handler.AuthMiddleware(cfg.JWTSecretKey))
+
 			r.Get("/me", authHandler.Me)
+			r.Put("/me", authHandler.UpdateProfile)
+			r.Put("/me/password", authHandler.ChangePassword)
+
 			r.Get("/ws", wsHandler.ServeWs)
 			r.Post("/conversations", convHandler.StartPrivateConversation)
 			r.Get("/conversations", convHandler.GetConversations)
