@@ -11,12 +11,19 @@ import (
 	"github.com/google/uuid"
 )
 
+type UserSearchResult struct {
+	ID    uuid.UUID `db:"id"`
+	Name  string    `db:"name"`
+	Image *string   `db:"image"`
+}
+
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *domain.User) error
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	UpdateUser(ctx context.Context, user *domain.User) error
 	UpdatePassword(ctx context.Context, userID uuid.UUID, newHashedPassword string) error
+	SearchUsers(ctx context.Context, query string, selfID uuid.UUID) ([]*UserSearchResult, error)
 }
 
 type postgresUserRepository struct {
@@ -128,4 +135,31 @@ func (r *postgresUserRepository) UpdatePassword(ctx context.Context, userID uuid
 	query := `UPDATE users SET hashed_password = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.ExecContext(ctx, query, newHashedPassword, userID)
 	return err
+}
+
+func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string, selfID uuid.UUID) ([]*UserSearchResult, error) {
+	searchQuery := "%" + query + "%"
+
+	sqlQuery := `
+		SELECT id, name, image
+		FROM users
+		WHERE (name ILIKE $1 OR email ILIKE $1) AND id != $2
+		LIMIT 20 -- Batasi hasil untuk mencegah penyalahgunaan
+	`
+
+	rows, err := r.db.QueryContext(ctx, sqlQuery, searchQuery, selfID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*UserSearchResult
+	for rows.Next() {
+		var u UserSearchResult
+		if err := rows.Scan(&u.ID, &u.Name, &u.Image); err != nil {
+			return nil, err
+		}
+		users = append(users, &u)
+	}
+	return users, nil
 }

@@ -51,6 +51,7 @@ func main() {
 	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey)
 	chatService := service.NewChatService(msgRepo, convRepo, hub)
 	contactService := service.NewContactService(contactRepo, userRepo)
+	userService := service.NewUserService(userRepo)
 
 	hub.SetChatService(chatService)
 
@@ -58,6 +59,7 @@ func main() {
 	wsHandler := handler.NewWebsocketHandler(hub)
 	convHandler := handler.NewConversationHandler(chatService)
 	contactHandler := handler.NewContactHandler(contactService)
+	userHandler := handler.NewUserHandler(userService)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -92,6 +94,8 @@ func main() {
 			r.Post("/conversations/{conversationID}/participants", convHandler.AddParticipants)
 			r.Delete("/conversations/{conversationID}/participants/{userID}", convHandler.RemoveParticipant)
 			r.Delete("/conversations/{conversationID}/leave", convHandler.LeaveGroup)
+
+			r.Get("/users/search", userHandler.SearchUsers)
 		})
 	})
 
