@@ -11,6 +11,7 @@ import (
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/handler"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/repository"
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
+	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
@@ -37,6 +38,11 @@ func main() {
 		log.Fatalf("could not ping database: %v", err)
 	}
 
+	cld, err := cloudinary.NewFromURL(cfg.CloudinaryURL)
+	if err != nil {
+		log.Fatalf("Failed to intialize Cloudinary: %v", err)
+	}
+
 	fmt.Println("Successfully connected to the database!")
 	fmt.Printf("Starting server on port %s\n", cfg.ServerPort)
 
@@ -52,6 +58,7 @@ func main() {
 	chatService := service.NewChatService(msgRepo, convRepo, hub)
 	contactService := service.NewContactService(contactRepo, userRepo)
 	userService := service.NewUserService(userRepo)
+	uploadService := service.NewCloudinaryUploadService(cld)
 
 	hub.SetChatService(chatService)
 
@@ -60,6 +67,7 @@ func main() {
 	convHandler := handler.NewConversationHandler(chatService)
 	contactHandler := handler.NewContactHandler(contactService)
 	userHandler := handler.NewUserHandler(userService)
+	uploadHandler := handler.NewUploadHandler(uploadService)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -96,6 +104,7 @@ func main() {
 			r.Delete("/conversations/{conversationID}/leave", convHandler.LeaveGroup)
 
 			r.Get("/users/search", userHandler.SearchUsers)
+			r.Post("/upload", uploadHandler.UploadImage)
 		})
 	})
 

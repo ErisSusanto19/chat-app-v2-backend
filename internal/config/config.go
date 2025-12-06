@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	DatabaseURL  string
-	ServerPort   string
-	JWTSecretKey string
+	DatabaseURL   string
+	ServerPort    string
+	JWTSecretKey  string
+	CloudinaryURL string
 }
 
 func Load() (*Config, error) {
@@ -34,9 +35,15 @@ func Load() (*Config, error) {
 		log.Fatal("JWT_SECRET_KEY is not set")
 	}
 
+	cloudinaryURL := os.Getenv("CLOUDINARY_URL")
+	if cloudinaryURL == "" {
+		log.Fatal("CLOUDINARY_URL is not set")
+	}
+
 	return &Config{
-		DatabaseURL:  dbURL,
-		ServerPort:   port,
-		JWTSecretKey: jwtKey,
+		DatabaseURL:   dbURL,
+		ServerPort:    port,
+		JWTSecretKey:  jwtKey,
+		CloudinaryURL: cloudinaryURL,
 	}, nil
 }
