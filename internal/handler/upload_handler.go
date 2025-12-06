@@ -30,14 +30,13 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	url, err := h.uploadService.UploadImage(r.Context(), file, fileHeader)
+	uploadResult, err := h.uploadService.UploadImage(r.Context(), file, fileHeader)
 	if err != nil {
 		http.Error(w, "Failed to upload image.", http.StatusInternalServerError)
 		return
 	}
 
-	response := map[string]string{"url": url}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(uploadResult)
 }

@@ -12,7 +12,7 @@ type User struct {
 	Email          string    `db:"email" json:"email"`
 	HashedPassword string    `db:"hashed_password" json:"-"`
 	PhoneNumber    *string   `db:"phone_number" json:"phone_number,omitempty"`
-	Image          *string   `db:"image" json:"image,omitempty"`
+	ImagePublicID  *string   `db:"image_public_id" json:"image_public_id,omitempty"`
 	CreatedAt      time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
 }
@@ -32,7 +32,7 @@ type Conversation struct {
 	ID            uuid.UUID     `db:"id" json:"id"`
 	IsGroup       bool          `db:"is_group" json:"is_group"`
 	Name          *string       `db:"name" json:"name,omitempty"`
-	Image         *string       `db:"image" json:"image,omitempty"`
+	ImagePublicID *string       `db:"image_public_id" json:"image_public_id,omitempty"`
 	Description   *string       `db:"description" json:"description,omitempty"`
 	CreatedBy     uuid.NullUUID `db:"created_by" json:"created_by"`
 	LastMessageID uuid.NullUUID `db:"last_message_id" json:"-"`

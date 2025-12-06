@@ -1,5 +1,3 @@
-// File: internal/service/auth_service.go
-
 package service
 
 import (
@@ -25,14 +23,16 @@ type AuthService interface {
 }
 
 type authService struct {
-	userRepo     repository.UserRepository
-	jwtSecretKey string
+	userRepo      repository.UserRepository
+	jwtSecretKey  string
+	uploadService UploadService
 }
 
-func NewAuthService(userRepo repository.UserRepository, jwtSecretKey string) AuthService {
+func NewAuthService(userRepo repository.UserRepository, jwtSecretKey string, uploadService UploadService) AuthService {
 	return &authService{
-		userRepo:     userRepo,
-		jwtSecretKey: jwtSecretKey,
+		userRepo:      userRepo,
+		jwtSecretKey:  jwtSecretKey,
+		uploadService: uploadService,
 	}
 }
 
@@ -115,20 +115,26 @@ func (s *authService) GetProfile(ctx context.Context, userID uuid.UUID) (*domain
 	return user, nil
 }
 
-func (s *authService) UpdateProfile(ctx context.Context, userID uuid.UUID, name string, phoneNumber, image *string) (*domain.User, error) {
+func (s *authService) UpdateProfile(ctx context.Context, userID uuid.UUID, name string, phoneNumber, imagePublicID *string) (*domain.User, error) {
 	user, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil || user == nil {
 		return nil, errors.New("user not found")
 	}
 
+	oldPublicID := user.ImagePublicID
+
 	if name != "" {
 		user.Name = name
 	}
 	user.PhoneNumber = phoneNumber
-	user.Image = image
+	user.ImagePublicID = imagePublicID
 
 	if err := s.userRepo.UpdateUser(ctx, user); err != nil {
 		return nil, err
+	}
+
+	if s.uploadService != nil && imagePublicID != nil && oldPublicID != nil && *oldPublicID != *imagePublicID {
+		go s.uploadService.DeleteImage(context.Background(), *oldPublicID)
 	}
 
 	user.HashedPassword = ""

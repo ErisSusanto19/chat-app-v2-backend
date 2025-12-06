@@ -54,11 +54,12 @@ func main() {
 	hub := ws.NewHub(nil)
 	go hub.Run()
 
-	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey)
+	uploadService := service.NewCloudinaryUploadService(cld)
+
+	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey, uploadService)
 	chatService := service.NewChatService(msgRepo, convRepo, hub)
 	contactService := service.NewContactService(contactRepo, userRepo)
 	userService := service.NewUserService(userRepo)
-	uploadService := service.NewCloudinaryUploadService(cld)
 
 	hub.SetChatService(chatService)
 

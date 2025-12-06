@@ -48,7 +48,7 @@ func (r *postgresUserRepository) GetUserByEmail(ctx context.Context, email strin
 		&user.Email,
 		&user.HashedPassword,
 		&user.PhoneNumber,
-		&user.Image,
+		&user.ImagePublicID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -86,7 +86,7 @@ func (r *postgresUserRepository) CreateUser(ctx context.Context, user *domain.Us
 		user.Email,
 		user.HashedPassword,
 		user.PhoneNumber,
-		user.Image,
+		user.ImagePublicID,
 		now,
 		now,
 	)
@@ -99,7 +99,7 @@ func (r *postgresUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) 
 	user := &domain.User{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID, &user.Name, &user.Email, &user.HashedPassword, &user.PhoneNumber,
-		&user.Image, &user.CreatedAt, &user.UpdatedAt,
+		&user.ImagePublicID, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -116,7 +116,7 @@ func (r *postgresUserRepository) UpdateUser(ctx context.Context, user *domain.Us
 		SET name = $1, phone_number = $2, image = $3, updated_at = NOW()
 		WHERE id = $4
 	`
-	res, err := r.db.ExecContext(ctx, query, user.Name, user.PhoneNumber, user.Image, user.ID)
+	res, err := r.db.ExecContext(ctx, query, user.Name, user.PhoneNumber, user.ImagePublicID, user.ID)
 	if err != nil {
 		return err
 	}

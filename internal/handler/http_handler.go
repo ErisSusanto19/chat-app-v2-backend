@@ -109,9 +109,9 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateProfileRequest struct {
-	Name        string  `json:"name"`
-	PhoneNumber *string `json:"phone_number"`
-	Image       *string `json:"image"`
+	Name          string  `json:"name"`
+	PhoneNumber   *string `json:"phone_number"`
+	ImagePublicID *string `json:"image_public_id"`
 }
 
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +123,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedUser, err := h.authService.UpdateProfile(r.Context(), userID, req.Name, req.PhoneNumber, req.Image)
+	updatedUser, err := h.authService.UpdateProfile(r.Context(), userID, req.Name, req.PhoneNumber, req.ImagePublicID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
