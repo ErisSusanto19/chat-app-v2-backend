@@ -28,16 +28,16 @@ type ChatService interface {
 type chatService struct {
 	msgRepo  repository.MessageRepository
 	convRepo repository.ConversationRepository
-	notifier Notifier
 	userRepo repository.UserRepository
+	notifier Notifier
 }
 
-func NewChatService(msgRepo repository.MessageRepository, convRepo repository.ConversationRepository, notifier Notifier, userRepo repository.UserRepository) ChatService {
+func NewChatService(msgRepo repository.MessageRepository, convRepo repository.ConversationRepository, userRepo repository.UserRepository, notifier Notifier) ChatService {
 	return &chatService{
 		msgRepo:  msgRepo,
 		convRepo: convRepo,
-		notifier: notifier,
 		userRepo: userRepo,
+		notifier: notifier,
 	}
 }
 

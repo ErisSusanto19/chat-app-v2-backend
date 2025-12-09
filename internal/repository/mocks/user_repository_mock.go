@@ -45,9 +45,14 @@ func (m *MockUserRepository) UpdatePassword(ctx context.Context, userID uuid.UUI
 }
 
 func (m *MockUserRepository) SearchUsers(ctx context.Context, query string, selfID uuid.UUID) ([]*repository.UserSearchResult, error) {
-	return nil, nil
+	args := m.Called(ctx, query, selfID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*repository.UserSearchResult), args.Error(1)
 }
 
 func (m *MockUserRepository) CountExistingUsers(ctx context.Context, userIDs []uuid.UUID) (int, error) {
-	return 0, nil
+	args := m.Called(ctx, userIDs)
+	return args.Int(0), args.Error(1)
 }
