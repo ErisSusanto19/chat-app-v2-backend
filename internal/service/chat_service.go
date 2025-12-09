@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"slices"
 
@@ -28,13 +29,15 @@ type chatService struct {
 	msgRepo  repository.MessageRepository
 	convRepo repository.ConversationRepository
 	notifier Notifier
+	userRepo repository.UserRepository
 }
 
-func NewChatService(msgRepo repository.MessageRepository, convRepo repository.ConversationRepository, notifier Notifier) ChatService {
+func NewChatService(msgRepo repository.MessageRepository, convRepo repository.ConversationRepository, notifier Notifier, userRepo repository.UserRepository) ChatService {
 	return &chatService{
 		msgRepo:  msgRepo,
 		convRepo: convRepo,
 		notifier: notifier,
+		userRepo: userRepo,
 	}
 }
 
@@ -133,6 +136,15 @@ func (s *chatService) CreateGroup(ctx context.Context, creatorID uuid.UUID, name
 			uniqueParticipants[id] = true
 			finalParticipants = append(finalParticipants, id)
 		}
+	}
+
+	count, err := s.userRepo.CountExistingUsers(ctx, finalParticipants)
+	if err != nil {
+		return nil, fmt.Errorf("error during participant validation: %w", err)
+	}
+
+	if count != len(finalParticipants) {
+		return nil, errors.New("one or more participant IDs are invalid or do not exist")
 	}
 
 	return s.convRepo.CreateGroupConversation(ctx, creatorID, name, finalParticipants)

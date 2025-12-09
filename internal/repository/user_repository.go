@@ -24,6 +24,7 @@ type UserRepository interface {
 	UpdateUser(ctx context.Context, user *domain.User) error
 	UpdatePassword(ctx context.Context, userID uuid.UUID, newHashedPassword string) error
 	SearchUsers(ctx context.Context, query string, selfID uuid.UUID) ([]*UserSearchResult, error)
+	CountExistingUsers(ctx context.Context, userIDs []uuid.UUID) (int, error)
 }
 
 type postgresUserRepository struct {
@@ -36,7 +37,7 @@ func NewPostgresUserRepository(db *sql.DB) UserRepository {
 
 func (r *postgresUserRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT id, name, email, hashed_password, phone_number, image, created_at, updated_at
+		SELECT id, name, email, hashed_password, phone_number, image_public_id, created_at, updated_at
 		FROM users WHERE email = $1
 	`
 
@@ -95,7 +96,7 @@ func (r *postgresUserRepository) CreateUser(ctx context.Context, user *domain.Us
 }
 
 func (r *postgresUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	query := `SELECT id, name, email, hashed_password, phone_number, image, created_at, updated_at FROM users WHERE id = $1`
+	query := `SELECT id, name, email, hashed_password, phone_number, image_public_id, created_at, updated_at FROM users WHERE id = $1`
 	user := &domain.User{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID, &user.Name, &user.Email, &user.HashedPassword, &user.PhoneNumber,
@@ -113,7 +114,7 @@ func (r *postgresUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) 
 func (r *postgresUserRepository) UpdateUser(ctx context.Context, user *domain.User) error {
 	query := `
 		UPDATE users
-		SET name = $1, phone_number = $2, image = $3, updated_at = NOW()
+		SET name = $1, phone_number = $2, image_public_id = $3, updated_at = NOW()
 		WHERE id = $4
 	`
 	res, err := r.db.ExecContext(ctx, query, user.Name, user.PhoneNumber, user.ImagePublicID, user.ID)
@@ -162,4 +163,15 @@ func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string, 
 		users = append(users, &u)
 	}
 	return users, nil
+}
+
+func (r *postgresUserRepository) CountExistingUsers(ctx context.Context, userIDs []uuid.UUID) (int, error) {
+	query := `SELECT COUNT(id) FROM users WHERE id = ANY($1)`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userIDs).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

@@ -120,7 +120,7 @@ func (r *postgresContactRepository) GetContactByID(ctx context.Context, contactI
 	query := `
 		SELECT
 			c.id, c.alias_name, c.email, c.status,
-			u.id AS contact_user_id, u.name AS contact_name, u.image AS contact_image
+			u.id AS contact_user_id, u.name AS contact_name, u.image_public_id AS contact_image
 		FROM contacts c
 		LEFT JOIN users u ON c.contact_user_id = u.id
 		WHERE c.id = $1 AND c.owner_user_id = $2

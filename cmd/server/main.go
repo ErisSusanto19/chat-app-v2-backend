@@ -57,7 +57,7 @@ func main() {
 	uploadService := service.NewCloudinaryUploadService(cld)
 
 	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey, uploadService)
-	chatService := service.NewChatService(msgRepo, convRepo, hub)
+	chatService := service.NewChatService(msgRepo, convRepo, hub, userRepo)
 	contactService := service.NewContactService(contactRepo, userRepo)
 	userService := service.NewUserService(userRepo)
 
