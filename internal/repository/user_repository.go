@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/domain"
@@ -70,12 +71,13 @@ func (r *postgresUserRepository) CreateUser(ctx context.Context, user *domain.Us
 
 	hashedPassword, err := util.HashPassword(user.HashedPassword)
 	if err != nil {
+		log.Printf("DEBUG: Error hashing password: %v", err)
 		return err
 	}
 	user.HashedPassword = hashedPassword
 
 	query := `
-		INSERT INTO users (id, name, email, hashed_password, phone_number, image, created_at, updated_at)
+		INSERT INTO users (id, name, email, hashed_password, phone_number, image_public_id, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
@@ -91,6 +93,10 @@ func (r *postgresUserRepository) CreateUser(ctx context.Context, user *domain.Us
 		now,
 		now,
 	)
+
+	if err != nil {
+		log.Printf("DEBUG: Error executing INSERT query: %v", err)
+	}
 
 	return err
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -62,6 +63,7 @@ func (s *authService) Register(ctx context.Context, name, email, password string
 
 	err = s.userRepo.CreateUser(ctx, newUser)
 	if err != nil {
+		log.Printf("DEBUG: Error from CreateUser in service: %v", err)
 		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 

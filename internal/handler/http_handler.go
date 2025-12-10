@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/ErisSusanto19/chat-app-v2-backend/internal/service"
@@ -40,6 +41,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.authService.Register(r.Context(), req.Name, req.Email, req.Password)
 	if err != nil {
+		log.Printf("DEBUG: Error from Register service in handler: %v", err)
 		if errors.Is(err, errors.New("user with this email already exists")) {
 			http.Error(w, err.Error(), http.StatusConflict)
 		} else if errors.Is(err, errors.New("name and email cannot be empty")) || errors.Is(err, errors.New("password must be at least 8 characters long")) {
