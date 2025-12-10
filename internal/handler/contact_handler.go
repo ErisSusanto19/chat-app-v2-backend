@@ -54,7 +54,9 @@ func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contacts, err := h.contactService.GetContacts(r.Context(), ownerID)
+	limit, offset := ParsePagination(r)
+
+	contacts, err := h.contactService.GetContacts(r.Context(), ownerID, limit, offset)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return

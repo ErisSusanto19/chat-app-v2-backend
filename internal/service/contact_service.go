@@ -12,7 +12,7 @@ import (
 
 type ContactService interface {
 	AddContact(ctx context.Context, ownerID uuid.UUID, aliasName, contactEmail string) (*domain.Contact, error)
-	GetContacts(ctx context.Context, ownerID uuid.UUID) ([]*domain.Contact, error)
+	GetContacts(ctx context.Context, ownerID uuid.UUID, limit, offset int) ([]*domain.Contact, error)
 	UpdateContact(ctx context.Context, contactID, ownerID uuid.UUID, newAliasName string) error
 	DeleteContact(ctx context.Context, contactID, ownerID uuid.UUID) error
 	GetContactDetail(ctx context.Context, contactID, ownerID uuid.UUID) (*repository.ContactDetail, error)
@@ -64,8 +64,8 @@ func (s *contactService) AddContact(ctx context.Context, ownerID uuid.UUID, alia
 	return newContact, nil
 }
 
-func (s *contactService) GetContacts(ctx context.Context, ownerID uuid.UUID) ([]*domain.Contact, error) {
-	return s.contactRepo.GetContactsByOwnerID(ctx, ownerID)
+func (s *contactService) GetContacts(ctx context.Context, ownerID uuid.UUID, limit, offset int) ([]*domain.Contact, error) {
+	return s.contactRepo.GetContactsByOwnerID(ctx, ownerID, limit, offset)
 }
 
 func (s *contactService) UpdateContact(ctx context.Context, contactID, ownerID uuid.UUID, newAliasName string) error {

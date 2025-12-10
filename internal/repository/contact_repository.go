@@ -21,7 +21,7 @@ type ContactDetail struct {
 
 type ContactRepository interface {
 	CreateContact(ctx context.Context, contact *domain.Contact) error
-	GetContactsByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*domain.Contact, error)
+	GetContactsByOwnerID(ctx context.Context, ownerID uuid.UUID, limit, offset int) ([]*domain.Contact, error)
 	UpdateContactAlias(ctx context.Context, contactID, ownerID uuid.UUID, newAliasName string) error
 	DeleteContact(ctx context.Context, contactID, ownerID uuid.UUID) error
 	GetContactByID(ctx context.Context, contactID, ownerID uuid.UUID) (*ContactDetail, error)
@@ -52,12 +52,13 @@ func (r *postgresContactRepository) CreateContact(ctx context.Context, contact *
 	return err
 }
 
-func (r *postgresContactRepository) GetContactsByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*domain.Contact, error) {
+func (r *postgresContactRepository) GetContactsByOwnerID(ctx context.Context, ownerID uuid.UUID, limit, offset int) ([]*domain.Contact, error) {
 	query := `
 		SELECT id, owner_user_id, contact_user_id, alias_name, email, status, created_at, updated_at
 		FROM contacts
 		WHERE owner_user_id = $1
 		ORDER BY alias_name ASC
+		LIMIT $2 OFFSET $3
 	`
 	rows, err := r.db.QueryContext(ctx, query, ownerID)
 	if err != nil {
