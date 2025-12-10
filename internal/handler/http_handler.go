@@ -75,9 +75,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		if errors.Is(err, errors.New("invalid email or password")) {
+		if errors.Is(err, service.ErrInvalidCredentials) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 		} else {
+			log.Printf("DEBUG: Unexpected error during login: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		return

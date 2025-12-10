@@ -13,9 +13,9 @@ import (
 )
 
 type UserSearchResult struct {
-	ID    uuid.UUID `db:"id"`
-	Name  string    `db:"name"`
-	Image *string   `db:"image"`
+	ID            uuid.UUID `db:"id"`
+	Name          string    `db:"name"`
+	ImagePublicID *string   `db:"image_public_id"`
 }
 
 type UserRepository interface {
@@ -148,7 +148,7 @@ func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string, 
 	searchQuery := "%" + query + "%"
 
 	sqlQuery := `
-		SELECT id, name, image
+		SELECT id, name, image_public_id
 		FROM users
 		WHERE (name ILIKE $1 OR email ILIKE $1) AND id != $2
 		LIMIT 20 -- Batasi hasil untuk mencegah penyalahgunaan
@@ -163,7 +163,7 @@ func (r *postgresUserRepository) SearchUsers(ctx context.Context, query string, 
 	var users []*UserSearchResult
 	for rows.Next() {
 		var u UserSearchResult
-		if err := rows.Scan(&u.ID, &u.Name, &u.Image); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.ImagePublicID); err != nil {
 			return nil, err
 		}
 		users = append(users, &u)

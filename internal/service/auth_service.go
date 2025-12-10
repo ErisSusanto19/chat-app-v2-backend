@@ -19,7 +19,7 @@ type AuthService interface {
 	Register(ctx context.Context, name, email, password string) (*domain.User, error)
 	Login(ctx context.Context, email, password string) (string, error)
 	GetProfile(ctx context.Context, userID uuid.UUID) (*domain.User, error)
-	UpdateProfile(ctx context.Context, userID uuid.UUID, name string, phoneNumber, image *string) (*domain.User, error)
+	UpdateProfile(ctx context.Context, userID uuid.UUID, name string, phoneNumber, imagePublicID *string) (*domain.User, error)
 	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 }
 
@@ -72,6 +72,8 @@ func (s *authService) Register(ctx context.Context, name, email, password string
 	return newUser, nil
 }
 
+var ErrInvalidCredentials = errors.New("invalid email or password")
+
 func (s *authService) Login(ctx context.Context, email, password string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" || password == "" {
@@ -83,11 +85,11 @@ func (s *authService) Login(ctx context.Context, email, password string) (string
 		return "", fmt.Errorf("database error: %w", err)
 	}
 	if user == nil {
-		return "", errors.New("invalid email or password")
+		return "", ErrInvalidCredentials
 	}
 
 	if !util.CheckPasswordHash(password, user.HashedPassword) {
-		return "", errors.New("invalid email or password")
+		return "", ErrInvalidCredentials
 	}
 
 	claims := jwt.MapClaims{
