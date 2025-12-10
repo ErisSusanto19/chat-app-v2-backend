@@ -45,8 +45,8 @@ func (m *MockConversationRepository) CreateGroupConversation(ctx context.Context
 	return args.Get(0).(*domain.Conversation), args.Error(1)
 }
 
-func (m *MockConversationRepository) GetConversationPreviews(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error) {
-	args := m.Called(ctx, userID)
+func (m *MockConversationRepository) GetConversationPreviews(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*repository.ConversationPreview, error) {
+	args := m.Called(ctx, userID, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

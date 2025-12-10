@@ -23,7 +23,7 @@ type ConversationRepository interface {
 	GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
 	FindPrivateConversation(ctx context.Context, userID1, userID2 uuid.UUID) (*uuid.UUID, error)
 	CreatePrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
-	GetConversationPreviews(ctx context.Context, userID uuid.UUID) ([]*ConversationPreview, error)
+	GetConversationPreviews(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*ConversationPreview, error)
 	CreateGroupConversation(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
 	AddParticipantsToGroup(ctx context.Context, conversationID uuid.UUID, userIDs []uuid.UUID) error
 	GetUserRole(ctx context.Context, userID, conversationID uuid.UUID) (string, error)
@@ -119,7 +119,7 @@ func (r *postgresConversationRepository) CreatePrivateConversation(ctx context.C
 	return conv, nil
 }
 
-func (r *postgresConversationRepository) GetConversationPreviews(ctx context.Context, userID uuid.UUID) ([]*ConversationPreview, error) {
+func (r *postgresConversationRepository) GetConversationPreviews(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*ConversationPreview, error) {
 	// query yang kompleks:
 	// 1. mulai dari user_conversations (uc1) untuk menemukan semua percakapan milik userID.
 	// 2. JOIN dengan conversations (c) untuk mendapatkan detail dasar.
@@ -133,7 +133,7 @@ func (r *postgresConversationRepository) GetConversationPreviews(ctx context.Con
 			c.id,
 			c.is_group,
 			COALESCE(c.name, p.name) AS conversation_name,
-			COALESCE(c.image, p.image) AS conversation_image,
+			COALESCE(c.image_public_id, p.image_public_id) AS conversation_image,
 			m.content ->> 'message' AS last_message,
 			m.created_at AS last_message_timestamp
 		FROM user_conversations uc1
@@ -143,9 +143,10 @@ func (r *postgresConversationRepository) GetConversationPreviews(ctx context.Con
 		LEFT JOIN users p ON uc2.user_id = p.id AND c.is_group = FALSE
 		WHERE uc1.user_id = $1
 		ORDER BY m.created_at DESC NULLS LAST
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, userID)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

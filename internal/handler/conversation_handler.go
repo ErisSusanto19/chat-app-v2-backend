@@ -37,7 +37,9 @@ func (h *ConversationHandler) GetConversations(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	previews, err := h.chatService.GetConversationsForUser(r.Context(), userID)
+	limit, offset := ParsePagination(r)
+
+	previews, err := h.chatService.GetConversationsForUser(r.Context(), userID, limit, offset)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return

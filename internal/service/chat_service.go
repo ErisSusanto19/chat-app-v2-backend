@@ -15,7 +15,7 @@ import (
 type ChatService interface {
 	ProcessAndSaveMessage(ctx context.Context, senderID, conversationID uuid.UUID, content string) (*domain.Message, []uuid.UUID, error)
 	StartOrGetPrivateConversation(ctx context.Context, creatorID, partnerID uuid.UUID) (*domain.Conversation, error)
-	GetConversationsForUser(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error)
+	GetConversationsForUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*repository.ConversationPreview, error)
 	GetMessageHistory(ctx context.Context, userID, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error)
 	ProcessStatusUpdate(ctx context.Context, updaterID uuid.UUID, conversationID uuid.UUID, messageIDs []uuid.UUID, status string) ([]uuid.UUID, error)
 	CreateGroup(ctx context.Context, creatorID uuid.UUID, name string, participantIDs []uuid.UUID) (*domain.Conversation, error)
@@ -87,8 +87,8 @@ func (s *chatService) StartOrGetPrivateConversation(ctx context.Context, creator
 	return s.convRepo.CreatePrivateConversation(ctx, creatorID, partnerID)
 }
 
-func (s *chatService) GetConversationsForUser(ctx context.Context, userID uuid.UUID) ([]*repository.ConversationPreview, error) {
-	return s.convRepo.GetConversationPreviews(ctx, userID)
+func (s *chatService) GetConversationsForUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*repository.ConversationPreview, error) {
+	return s.convRepo.GetConversationPreviews(ctx, userID, limit, offset)
 }
 
 func (s *chatService) GetMessageHistory(ctx context.Context, userID, conversationID uuid.UUID, limit, offset int) ([]*domain.Message, error) {
