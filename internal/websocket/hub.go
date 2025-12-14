@@ -16,20 +16,22 @@ type HubMessage struct {
 }
 
 type Hub struct {
-	Clients     map[uuid.UUID]map[*Client]bool
-	Broadcast   chan *HubMessage
-	Register    chan *Client
-	Unregister  chan *Client
-	ChatService service.ChatService
+	Clients        map[uuid.UUID]map[*Client]bool
+	Broadcast      chan *HubMessage
+	Register       chan *Client
+	Unregister     chan *Client
+	ChatService    service.ChatService
+	ContactService service.ContactService
 }
 
-func NewHub(chatService service.ChatService) *Hub {
+func NewHub(chatService service.ChatService, contactService service.ContactService) *Hub {
 	return &Hub{
-		Broadcast:   make(chan *HubMessage),
-		Register:    make(chan *Client),
-		Unregister:  make(chan *Client),
-		Clients:     make(map[uuid.UUID]map[*Client]bool),
-		ChatService: chatService,
+		Broadcast:      make(chan *HubMessage),
+		Register:       make(chan *Client),
+		Unregister:     make(chan *Client),
+		Clients:        make(map[uuid.UUID]map[*Client]bool),
+		ChatService:    chatService,
+		ContactService: contactService,
 	}
 }
 
@@ -37,11 +39,17 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.Register:
-			if _, ok := h.Clients[client.UserID]; !ok {
+			isFirstConnection := h.Clients[client.UserID] == nil
+
+			if isFirstConnection {
 				h.Clients[client.UserID] = make(map[*Client]bool)
 			}
 			h.Clients[client.UserID][client] = true
 			log.Printf("Client connected: UserID %s, RemoteAddr %s", client.UserID, client.Conn.RemoteAddr())
+
+			if isFirstConnection {
+				go h.broadcastPresence(client.UserID, "user_online")
+			}
 
 		case client := <-h.Unregister:
 			if userClients, ok := h.Clients[client.UserID]; ok {
@@ -51,6 +59,8 @@ func (h *Hub) Run() {
 
 					if len(userClients) == 0 {
 						delete(h.Clients, client.UserID)
+						log.Printf("User offline: UserID %s", client.UserID)
+						go h.broadcastPresence(client.UserID, "user_offline")
 					}
 				}
 			}
@@ -230,4 +240,32 @@ func (h *Hub) NotifyUserAddedToGroup(addedByUserID uuid.UUID, newMemberIDs []uui
 
 func (h *Hub) SetChatService(chatService service.ChatService) {
 	h.ChatService = chatService
+}
+
+func (h *Hub) broadcastPresence(userID uuid.UUID, presenceType string) {
+	if h.ContactService == nil {
+		log.Println("WARNING: ContactService not set in Hub, cannot broadcast presence.")
+		return
+	}
+
+	contacts, err := h.ContactService.GetContacts(context.Background(), userID, 1000, 0)
+	if err != nil {
+		log.Printf("Error getting contacts for presence broadcast: %v", err)
+		return
+	}
+
+	payload := PresenceNotificationPayload{UserID: userID}
+	msg := Message{Type: presenceType, Payload: payload}
+	msgBytes, _ := json.Marshal(msg)
+
+	for _, contact := range contacts {
+		if contact.ContactUserID.Valid {
+			contactID := contact.ContactUserID.UUID
+			if userClients, ok := h.Clients[contactID]; ok {
+				for client := range userClients {
+					client.Send <- msgBytes
+				}
+			}
+		}
+	}
 }

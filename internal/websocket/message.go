@@ -47,3 +47,7 @@ type YouWereAddedToGroupPayload struct {
 	ConversationID uuid.UUID `json:"conversation_id"`
 	AddedByUserID  uuid.UUID `json:"added_by_user_id"`
 }
+
+type PresenceNotificationPayload struct {
+	UserID uuid.UUID `json:"user_id"`
+}

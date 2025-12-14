@@ -51,16 +51,15 @@ func main() {
 	msgRepo := repository.NewPostgresMessageRepository(db)
 	contactRepo := repository.NewPostgresContactRepository(db)
 
-	hub := ws.NewHub(nil)
-	go hub.Run()
-
 	uploadService := service.NewCloudinaryUploadService(cld)
-
 	authService := service.NewAuthService(userRepo, cfg.JWTSecretKey, uploadService)
-	chatService := service.NewChatService(msgRepo, convRepo, userRepo, hub)
 	contactService := service.NewContactService(contactRepo, userRepo)
 	userService := service.NewUserService(userRepo)
 
+	hub := ws.NewHub(nil, contactService)
+	go hub.Run()
+
+	chatService := service.NewChatService(msgRepo, convRepo, userRepo, hub)
 	hub.SetChatService(chatService)
 
 	authHandler := handler.NewAuthHandler(authService)
