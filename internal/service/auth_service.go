@@ -39,13 +39,13 @@ func NewAuthService(userRepo repository.UserRepository, jwtSecretKey string, upl
 
 func (s *authService) Register(ctx context.Context, name, email, password string) (*domain.User, error) {
 
-	email = strings.ToLower(strings.TrimSpace(email))
-	if name == "" || email == "" {
-		return nil, errors.New("name and email cannot be empty")
-	}
-	if len(password) < 8 {
-		return nil, errors.New("password must be at least 8 characters long")
-	}
+	// email = strings.ToLower(strings.TrimSpace(email))
+	// if name == "" || email == "" {
+	// 	return nil, errors.New("name and email cannot be empty")
+	// }
+	// if len(password) < 8 {
+	// 	return nil, errors.New("password must be at least 8 characters long")
+	// }
 
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -159,12 +159,12 @@ func (s *authService) ChangePassword(ctx context.Context, userID uuid.UUID, oldP
 		return errors.New("incorrect old password")
 	}
 
-	if len(newPassword) < 8 {
-		return errors.New("new password must be at least 8 characters long")
-	}
-	if newPassword == oldPassword {
-		return errors.New("new password cannot be the same as the old password")
-	}
+	// if len(newPassword) < 8 {
+	// 	return errors.New("new password must be at least 8 characters long")
+	// }
+	// if newPassword == oldPassword {
+	// 	return errors.New("new password cannot be the same as the old password")
+	// }
 
 	newHashedPassword, err := util.HashPassword(newPassword)
 	if err != nil {
