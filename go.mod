@@ -1,11 +1,12 @@
 module github.com/ErisSusanto19/chat-app-v2-backend
 
-go 1.25.3
+go 1.24.0
 
 require (
 	github.com/cloudinary/cloudinary-go/v2 v2.14.0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.7.6
@@ -17,7 +18,6 @@ require (
 require (
 	github.com/creasty/defaults v1.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/golang-migrate/migrate/v4 v4.19.1 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
